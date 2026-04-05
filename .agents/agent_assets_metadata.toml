@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "NM4QeEgGtFW6_9oJEYxIV"
+uri = "file://ANDROID_API_GUIDE.md"
+type = "text"
+title = "Skema API Terbaru — PIN, Transfer & Minta"

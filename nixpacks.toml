@@ -1,0 +1,14 @@
+[phases.setup]
+nixPkgs = ["nodejs_20", "openssl"]
+
+[phases.install]
+cmds = ["npm install -g corepack@latest --quiet && corepack enable && COREPACK_INTEGRITY_KEYS=0 corepack prepare pnpm@10.26.1 --activate && pnpm install --no-frozen-lockfile"]
+
+[phases.build]
+cmds = [
+  "BASE_PATH=/ pnpm --filter @workspace/dashboard run build",
+  "pnpm --filter @workspace/api-server run build"
+]
+
+[start]
+cmd = "node artifacts/api-server/dist/index.mjs"

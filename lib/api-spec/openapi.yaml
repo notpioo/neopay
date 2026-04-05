@@ -1,0 +1,1137 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API Backend NeoPay - Sistem Antrian Digital Bank
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Autentikasi pengguna
+  - name: antrian
+    description: Manajemen antrian nasabah
+  - name: admin
+    description: Operasi admin bank
+  - name: jadwal
+    description: Jadwal operasional bank
+  - name: nasabah
+    description: Profil dan data nasabah
+  - name: whatsapp
+    description: Manajemen WhatsApp
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /daftar:
+    post:
+      operationId: daftar
+      tags: [auth]
+      summary: Daftar akun baru
+      description: Mendaftarkan nasabah baru ke sistem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DaftarBody"
+      responses:
+        "201":
+          description: Berhasil daftar
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Data tidak valid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /masuk:
+    post:
+      operationId: masuk
+      tags: [auth]
+      summary: Login
+      description: Login dengan email dan password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MasukBody"
+      responses:
+        "200":
+          description: Berhasil login
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Email atau password salah
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /antrian/hari-ini:
+    get:
+      operationId: getAntrianHariIni
+      tags: [antrian]
+      summary: Lihat antrian hari ini
+      description: Melihat daftar antrian hari ini (publik, tanpa data pribadi nasabah)
+      responses:
+        "200":
+          description: Daftar antrian hari ini
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DaftarAntrianPublikResponse"
+
+  /antrian/status-saya:
+    get:
+      operationId: getStatusSaya
+      tags: [antrian]
+      summary: Status antrian saya
+      description: Melihat posisi dan status antrian milik nasabah yang login
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Status antrian nasabah
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusAntrianResponse"
+        "404":
+          description: Tidak ada antrian aktif
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /antrian/ambil:
+    post:
+      operationId: ambilAntrian
+      tags: [antrian]
+      summary: Ambil nomor antrian
+      description: Nasabah mengambil nomor antrian hari ini
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AmbilAntrianBody"
+      responses:
+        "201":
+          description: Berhasil ambil antrian
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AntrianDetailResponse"
+        "400":
+          description: Bank tutup atau kuota penuh
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Sudah punya antrian aktif hari ini
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /antrian/{id}/batal:
+    put:
+      operationId: batalAntrian
+      tags: [antrian]
+      summary: Batalkan antrian
+      description: Nasabah membatalkan antriannya sendiri
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Antrian berhasil dibatalkan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AntrianDetailResponse"
+        "404":
+          description: Antrian tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/antrian/{id}/panggil:
+    put:
+      operationId: panggilAntrian
+      tags: [admin]
+      summary: Panggil nasabah
+      description: Admin/Teller memanggil nomor antrian berikutnya
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Nasabah berhasil dipanggil
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AntrianDetailResponse"
+        "404":
+          description: Antrian tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/antrian/{id}/selesai:
+    put:
+      operationId: selesaiAntrian
+      tags: [admin]
+      summary: Tandai selesai
+      description: Admin menandai nasabah sudah selesai dilayani
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Antrian ditandai selesai
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AntrianDetailResponse"
+        "404":
+          description: Antrian tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/antrian/{id}/skip:
+    put:
+      operationId: skipAntrian
+      tags: [admin]
+      summary: Skip nasabah
+      description: Admin melewati nasabah (menandai dibatalkan)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Antrian dilewati
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AntrianDetailResponse"
+        "404":
+          description: Antrian tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/dasbor:
+    get:
+      operationId: getDasbor
+      tags: [admin]
+      summary: Statistik dasbor
+      description: Statistik antrian hari ini untuk admin
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Statistik dasbor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DasborResponse"
+
+  /jadwal:
+    get:
+      operationId: getJadwal
+      tags: [jadwal]
+      summary: Jadwal operasional bank
+      description: Melihat jadwal operasional bank yang aktif
+      responses:
+        "200":
+          description: Jadwal operasional
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JadwalResponse"
+
+  /admin/jadwal:
+    put:
+      operationId: updateJadwal
+      tags: [admin]
+      summary: Update jadwal
+      description: Admin memperbarui jadwal operasional bank
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateJadwalBody"
+      responses:
+        "200":
+          description: Jadwal berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JadwalResponse"
+
+  /nasabah/profil:
+    get:
+      operationId: getProfilSaya
+      tags: [nasabah]
+      summary: Profil nasabah
+      description: Melihat profil nasabah yang sedang login
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Profil nasabah
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NasabahResponse"
+        "404":
+          description: Profil tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    put:
+      operationId: updateProfil
+      tags: [nasabah]
+      summary: Update profil
+      description: Nasabah memperbarui profil dirinya
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfilBody"
+      responses:
+        "200":
+          description: Profil berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NasabahResponse"
+
+  /nasabah/daftar-notif:
+    post:
+      operationId: daftarNotif
+      tags: [nasabah]
+      summary: Daftarkan push notifikasi
+      description: Menyimpan OneSignal player ID untuk push notifikasi
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DaftarNotifBody"
+      responses:
+        "200":
+          description: Berhasil daftar notifikasi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PesanResponse"
+
+  /nasabah/pin/set:
+    post:
+      operationId: setPin
+      tags: [nasabah]
+      summary: Set PIN transaksi
+      description: Nasabah menetapkan PIN transaksi untuk pertama kali. Gagal jika PIN sudah ada.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetPinBody"
+      responses:
+        "200":
+          description: PIN berhasil diset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PesanResponse"
+        "400":
+          description: PIN sudah pernah dibuat atau data tidak valid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /nasabah/pin/ubah:
+    put:
+      operationId: ubahPin
+      tags: [nasabah]
+      summary: Ganti PIN transaksi
+      description: Nasabah mengganti PIN transaksi menggunakan PIN lama sebagai verifikasi.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UbahPinBody"
+      responses:
+        "200":
+          description: PIN berhasil diubah
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PesanResponse"
+        "400":
+          description: PIN lama salah, akun terkunci, atau data tidak valid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /nasabah/cek-rekening:
+    get:
+      operationId: cekRekening
+      tags: [nasabah]
+      summary: Cek informasi penerima berdasarkan nomor rekening
+      description: Validasi nomor rekening dan ambil info penerima sebelum transfer. Digunakan pada step pertama alur transfer.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: noRekening
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Nomor rekening yang ingin dicek
+      responses:
+        "200":
+          description: Info penerima ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CekRekeningResponse"
+        "400":
+          description: Rekening sendiri atau tidak aktif
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Nomor rekening tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /nasabah/transfer:
+    post:
+      operationId: transfer
+      tags: [nasabah]
+      summary: Transfer saldo ke nasabah lain
+      description: Transfer saldo ke nasabah lain berdasarkan nomor rekening. PIN transaksi wajib sudah diset sebelumnya.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransferBody"
+      responses:
+        "200":
+          description: Transfer berhasil
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransferResponse"
+        "400":
+          description: Saldo tidak cukup, rekening tidak ditemukan, PIN salah, atau PIN belum diset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /nasabah/transaksi:
+    get:
+      operationId: getRiwayatTransaksi
+      tags: [nasabah]
+      summary: Riwayat transaksi saldo
+      description: Melihat riwayat transaksi saldo nasabah (transfer masuk/keluar, top up)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Riwayat transaksi saldo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DaftarTransaksiResponse"
+
+  /nasabah/riwayat:
+    get:
+      operationId: getRiwayat
+      tags: [nasabah]
+      summary: Riwayat transaksi antrian
+      description: Melihat riwayat antrian nasabah
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Riwayat antrian
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DaftarAntrianResponse"
+
+  /admin/wa/status:
+    get:
+      operationId: getStatusWA
+      tags: [whatsapp]
+      summary: Status WhatsApp
+      description: Mengecek status koneksi WhatsApp
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Status WhatsApp
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusWAResponse"
+
+  /admin/wa/qr:
+    get:
+      operationId: getQrWA
+      tags: [whatsapp]
+      summary: QR Code WhatsApp
+      description: Mendapatkan QR code untuk scan WhatsApp
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: QR code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QrWAResponse"
+        "409":
+          description: WhatsApp sudah terhubung
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    ErrorResponse:
+      type: object
+      properties:
+        pesan:
+          type: string
+        error:
+          type: string
+      required:
+        - pesan
+
+    PesanResponse:
+      type: object
+      properties:
+        pesan:
+          type: string
+      required:
+        - pesan
+
+    CekRekeningResponse:
+      type: object
+      properties:
+        nama:
+          type: string
+          description: Nama pemilik rekening
+        noRekening:
+          type: string
+          description: Nomor rekening
+      required:
+        - nama
+        - noRekening
+
+    TransferBody:
+      type: object
+      properties:
+        noRekening:
+          type: string
+          description: Nomor rekening tujuan
+        jumlah:
+          type: number
+          description: Jumlah transfer dalam rupiah
+          minimum: 1
+        pin:
+          type: string
+          minLength: 6
+          maxLength: 6
+          description: PIN transaksi 6 digit
+        keterangan:
+          type: string
+          nullable: true
+          description: Keterangan transfer opsional
+      required:
+        - noRekening
+        - jumlah
+        - pin
+
+    TransferResponse:
+      type: object
+      properties:
+        pesan:
+          type: string
+        transaksiId:
+          type: string
+          description: ID transaksi pengirim
+        jumlah:
+          type: number
+          description: Nominal transfer dalam rupiah
+        saldoAkhir:
+          type: number
+        createdAt:
+          type: string
+          description: Waktu transaksi dalam format ISO 8601
+        penerima:
+          type: object
+          properties:
+            nama:
+              type: string
+            noRekening:
+              type: string
+          required:
+            - nama
+            - noRekening
+      required:
+        - pesan
+        - transaksiId
+        - jumlah
+        - saldoAkhir
+        - createdAt
+        - penerima
+
+    TransaksiItem:
+      type: object
+      properties:
+        id:
+          type: string
+        nasabahId:
+          type: string
+        lawanId:
+          type: string
+          nullable: true
+        tipe:
+          type: string
+          enum: [transfer_masuk, transfer_keluar, top_up]
+        jumlah:
+          type: number
+        saldoSebelum:
+          type: number
+        saldoSesudah:
+          type: number
+        keterangan:
+          type: string
+          nullable: true
+        namaLawan:
+          type: string
+          nullable: true
+        noRekeningLawan:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+      required:
+        - id
+        - nasabahId
+        - tipe
+        - jumlah
+        - saldoSebelum
+        - saldoSesudah
+        - createdAt
+
+    DaftarTransaksiResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/TransaksiItem"
+        total:
+          type: number
+      required:
+        - data
+        - total
+
+    SetPinBody:
+      type: object
+      properties:
+        pin:
+          type: string
+          minLength: 6
+          maxLength: 6
+          description: PIN 6 digit angka
+      required:
+        - pin
+
+    UbahPinBody:
+      type: object
+      properties:
+        pinLama:
+          type: string
+          minLength: 6
+          maxLength: 6
+          description: PIN lama untuk verifikasi
+        pinBaru:
+          type: string
+          minLength: 6
+          maxLength: 6
+          description: PIN baru 6 digit angka
+      required:
+        - pinLama
+        - pinBaru
+
+    DaftarBody:
+      type: object
+      properties:
+        nama:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+        noHp:
+          type: string
+        nik:
+          type: string
+          nullable: true
+        tanggalLahir:
+          type: string
+          description: Tanggal lahir format YYYY-MM-DD
+      required:
+        - nama
+        - email
+        - password
+        - noHp
+        - tanggalLahir
+
+    MasukBody:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        nasabah:
+          $ref: "#/components/schemas/NasabahResponse"
+      required:
+        - token
+        - nasabah
+
+    NasabahResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        supabaseUserId:
+          type: string
+        nama:
+          type: string
+        noHp:
+          type: string
+        email:
+          type: string
+        nik:
+          type: string
+          nullable: true
+        noRekening:
+          type: string
+          nullable: true
+        tanggalLahir:
+          type: string
+          nullable: true
+        saldo:
+          type: integer
+          description: Saldo nasabah dalam rupiah
+        role:
+          type: string
+          enum: [nasabah, teller, admin]
+        oneSignalPlayerId:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - supabaseUserId
+        - nama
+        - noHp
+        - email
+        - saldo
+        - role
+        - createdAt
+
+    AntrianPublikItem:
+      type: object
+      description: Data antrian publik tanpa PII (untuk tampilan layar tunggu)
+      properties:
+        id:
+          type: string
+        tanggal:
+          type: string
+        nomorAntrian:
+          type: integer
+        jenisLayanan:
+          type: string
+          enum: [teller, cs, kredit]
+        status:
+          type: string
+          enum: [menunggu, dipanggil, sedang_dilayani, selesai, dibatalkan]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - tanggal
+        - nomorAntrian
+        - jenisLayanan
+        - status
+        - createdAt
+        - updatedAt
+
+    AntrianItem:
+      type: object
+      description: Data antrian lengkap dengan nasabahId (untuk nasabah atau admin yang terautentikasi)
+      properties:
+        id:
+          type: string
+        nasabahId:
+          type: string
+        cabangId:
+          type: string
+          nullable: true
+        tanggal:
+          type: string
+        nomorAntrian:
+          type: integer
+        jenisLayanan:
+          type: string
+          enum: [teller, cs, kredit]
+        status:
+          type: string
+          enum: [menunggu, dipanggil, sedang_dilayani, selesai, dibatalkan]
+        catatan:
+          type: string
+          nullable: true
+        dilayaniOlehId:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        namaNasabah:
+          type: string
+          nullable: true
+        noHpNasabah:
+          type: string
+          nullable: true
+        namaCabang:
+          type: string
+          nullable: true
+        alamatCabang:
+          type: string
+          nullable: true
+        kodeCabang:
+          type: string
+          nullable: true
+        namaPetugas:
+          type: string
+          nullable: true
+      required:
+        - id
+        - nasabahId
+        - tanggal
+        - nomorAntrian
+        - jenisLayanan
+        - status
+        - createdAt
+        - updatedAt
+
+    AntrianDetailResponse:
+      type: object
+      properties:
+        antrian:
+          $ref: "#/components/schemas/AntrianItem"
+        posisi:
+          type: integer
+          nullable: true
+      required:
+        - antrian
+
+    StatusAntrianResponse:
+      type: object
+      properties:
+        antrian:
+          $ref: "#/components/schemas/AntrianItem"
+        posisi:
+          type: integer
+        totalMenunggu:
+          type: integer
+        dipanggilSekarang:
+          allOf:
+            - $ref: "#/components/schemas/AntrianPublikItem"
+          nullable: true
+      required:
+        - antrian
+        - posisi
+        - totalMenunggu
+
+    DaftarAntrianPublikResponse:
+      type: object
+      description: Daftar antrian publik tanpa PII (untuk /antrian/hari-ini)
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AntrianPublikItem"
+        total:
+          type: integer
+      required:
+        - data
+        - total
+
+    DaftarAntrianResponse:
+      type: object
+      description: Daftar antrian lengkap dengan nasabahId (untuk endpoint terautentikasi)
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AntrianItem"
+        total:
+          type: integer
+      required:
+        - data
+        - total
+
+    AmbilAntrianBody:
+      type: object
+      properties:
+        jenisLayanan:
+          type: string
+          enum: [teller, cs, kredit]
+        catatan:
+          type: string
+
+    JadwalResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        hariBuka:
+          type: array
+          items:
+            type: string
+        jamMulai:
+          type: string
+        jamSelesai:
+          type: string
+        kuotaPerHari:
+          type: integer
+        aktif:
+          type: boolean
+        keterangan:
+          type: string
+          nullable: true
+      required:
+        - id
+        - hariBuka
+        - jamMulai
+        - jamSelesai
+        - kuotaPerHari
+        - aktif
+
+    UpdateJadwalBody:
+      type: object
+      properties:
+        hariBuka:
+          type: array
+          items:
+            type: string
+        jamMulai:
+          type: string
+        jamSelesai:
+          type: string
+        kuotaPerHari:
+          type: integer
+        aktif:
+          type: boolean
+        keterangan:
+          type: string
+
+    UpdateProfilBody:
+      type: object
+      properties:
+        nama:
+          type: string
+        noHp:
+          type: string
+
+    DaftarNotifBody:
+      type: object
+      properties:
+        playerId:
+          type: string
+      required:
+        - playerId
+
+    DasborResponse:
+      type: object
+      properties:
+        tanggal:
+          type: string
+        totalAntrian:
+          type: integer
+        menunggu:
+          type: integer
+        dipanggil:
+          type: integer
+        sedangDilayani:
+          type: integer
+        selesai:
+          type: integer
+        dibatalkan:
+          type: integer
+        tellerCount:
+          type: integer
+        csCount:
+          type: integer
+        kreditCount:
+          type: integer
+        antrianAktif:
+          $ref: "#/components/schemas/AntrianItem"
+          nullable: true
+      required:
+        - tanggal
+        - totalAntrian
+        - menunggu
+        - dipanggil
+        - sedangDilayani
+        - selesai
+        - dibatalkan
+
+    StatusWAResponse:
+      type: object
+      properties:
+        terhubung:
+          type: boolean
+        nomorWA:
+          type: string
+          nullable: true
+        status:
+          type: string
+      required:
+        - terhubung
+        - status
+
+    QrWAResponse:
+      type: object
+      properties:
+        qr:
+          type: string
+        pesan:
+          type: string
+      required:
+        - qr
+        - pesan
