@@ -696,6 +696,67 @@ const API_GROUPS: ApiGroup[] = [
       },
     ],
   },
+  {
+    label: "Minta (QR Payment)",
+    color: "border-l-violet-500",
+    endpoints: [
+      {
+        method: "POST",
+        path: "/nasabah/minta",
+        desc: "Buat permintaan pembayaran baru. Backend menyimpan permintaan dan menghasilkan kode unik. Android yang me-render QR dari kode tersebut.",
+        auth: "Bearer Token (nasabah)",
+        bodyFields: [
+          { name: "jumlah",     type: "number", required: true,  desc: "Jumlah yang diminta dalam rupiah (min 1)" },
+          { name: "keterangan", type: "string", required: false, desc: "Keterangan / catatan permintaan (opsional)" },
+        ],
+        responseDesc: "Permintaan berhasil dibuat. Gunakan field kode sebagai isi QR code. QR berlaku 30 menit (expiredAt).",
+        responseSample: {
+          id: "uuid-permintaan",
+          kode: "NPY-A1B2C3D4",
+          jumlah: 75000,
+          keterangan: "Patungan makan",
+          namaPembuat: "Budi Santoso",
+          noRekeningPembuat: "1234567890",
+          expiredAt: "2026-04-05T10:30:00.000Z",
+          status: "menunggu",
+        },
+        notes: "Kode berformat NPY-XXXXXXXX (8 karakter acak). Render QR di Android menggunakan library seperti zxing atau qrcode-kotlin dengan isi = kode.",
+      },
+      {
+        method: "GET",
+        path: "/nasabah/minta/:kode",
+        desc: "Ambil detail permintaan setelah Android berhasil scan QR dan mendapat string kode. Digunakan untuk tampilkan info pembuat dan jumlah sebelum konfirmasi bayar.",
+        auth: "Bearer Token (nasabah)",
+        responseDesc: "Detail permintaan. Error 400 jika QR sudah kadaluarsa atau sudah dibayar.",
+        responseSample: {
+          id: "uuid-permintaan",
+          kode: "NPY-A1B2C3D4",
+          jumlah: 75000,
+          keterangan: "Patungan makan",
+          namaPembuat: "Budi Santoso",
+          noRekeningPembuat: "1234567890",
+          expiredAt: "2026-04-05T10:30:00.000Z",
+          status: "menunggu",
+        },
+        notes: "Panggil endpoint ini segera setelah scan QR berhasil. Jika status bukan menunggu atau sudah lewat expiredAt, tampilkan pesan error ke user.",
+      },
+      {
+        method: "POST",
+        path: "/nasabah/minta/:kode/bayar",
+        desc: "Bayar permintaan setelah user mengkonfirmasi dan memasukkan PIN. Transfer saldo dari pembayar ke pembuat secara atomik. Riwayat transaksi dicatat di kedua pihak.",
+        auth: "Bearer Token (nasabah)",
+        bodyFields: [
+          { name: "pin", type: "string", required: true, desc: "PIN transaksi 6 digit milik pembayar" },
+        ],
+        responseDesc: "Pembayaran berhasil. Saldo akhir pembayar dikembalikan.",
+        responseSample: {
+          pesan: "Pembayaran berhasil",
+          saldoAkhir: 375000,
+        },
+        notes: "Error 400 jika: PIN salah (maks 3x → kunci 15 menit), saldo tidak cukup, QR kadaluarsa, QR sudah dibayar, atau mencoba bayar permintaan sendiri.",
+      },
+    ],
+  },
 ];
 
 function CopyButton({ text }: { text: string }) {
